@@ -7,11 +7,29 @@ use KPT\Database;
 
 class DatabaseTest extends TestCase
 {
+    private object $testSettings;
+
     protected function setUp(): void
     {
-        // Skip all tests if database dependencies aren't available
-        if (!defined('KPT_PATH')) {
-            define('KPT_PATH', true);
+        // Create test database settings
+        $this->testSettings = (object) [
+            'server' => 'localhost',
+            'schema' => 'test_db',
+            'username' => 'test_user',
+            'password' => 'test_pass',
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci'
+        ];
+
+        // Mock Logger class if it doesn't exist
+        if (!class_exists('KPT\Logger')) {
+            eval('
+                namespace KPT;
+                class Logger {
+                    public static function debug($message, $context = []) {}
+                    public static function error($message, $context = []) {}
+                }
+            ');
         }
     }
 
@@ -20,28 +38,56 @@ class DatabaseTest extends TestCase
         $this->assertTrue(class_exists('KPT\Database'));
     }
 
+    public function testConstructorRequiresSettings(): void
+    {
+        $this->expectException(\TypeError::class);
+        new Database(); // Should fail without settings
+    }
+
     public function testMethodChainingWorks(): void
     {
-        // Test that we can call methods without errors (even without DB connection)
-        $this->expectNotToPerformAssertions();
-        
         try {
-            $db = new Database();
-            $db->query("SELECT 1")->single()->asArray();
+            $db = new Database($this->testSettings);
+            $result = $db->query("SELECT 1")->single()->asArray();
+            // If we get here, the chaining worked
+            $this->assertInstanceOf(Database::class, $result);
         } catch (\Exception $e) {
-            // Expected if no database connection
-            $this->assertStringContainsString('database', strtolower($e->getMessage()));
+            // Expected if no database connection - check for common DB connection errors
+            $message = strtolower($e->getMessage());
+            $this->assertTrue(
+                str_contains($message, 'database') ||
+                str_contains($message, 'connection') ||
+                str_contains($message, 'sqlstate') ||
+                str_contains($message, 'mysql') ||
+                str_contains($message, 'pdo'),
+                "Expected database-related error, got: " . $e->getMessage()
+            );
         }
     }
 
     public function testResetReturnsInstance(): void
     {
         try {
-            $db = new Database();
+            $db = new Database($this->testSettings);
             $result = $db->reset();
             $this->assertInstanceOf(Database::class, $result);
         } catch (\Exception $e) {
             // Skip if database not available
+            $this->markTestSkipped('Database not available');
+        }
+    }
+
+    public function testCamelCaseMethodsExist(): void
+    {
+        try {
+            $db = new Database($this->testSettings);
+            
+            // Test that PSR-12 compliant methods exist
+            $this->assertTrue(method_exists($db, 'asArray'));
+            $this->assertTrue(method_exists($db, 'asObject'));
+            $this->assertTrue(method_exists($db, 'getLastId'));
+            
+        } catch (\Exception $e) {
             $this->markTestSkipped('Database not available');
         }
     }
