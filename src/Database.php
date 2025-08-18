@@ -51,10 +51,14 @@ if (! class_exists('Database')) {
          * @author Kevin Pirnie <me@kpirnie.com>
          * @package KP Library
          *
+         * @param object $db_settings Database configuration settings (required)
          * @return void
+         * @throws \InvalidArgumentException When $db_settings is null or invalid
          */
-        public function __construct(?object $db_settings = null)
+        public function __construct(object $db_settings)
         {
+            // validate settings first
+            self::validateSettings($db_settings);
 
             // try to establish database connection
             try {
@@ -68,12 +72,6 @@ if (! class_exists('Database')) {
                 $this -> db_handle -> exec("SET NAMES {$db_settings -> charset} COLLATE {$db_settings -> collation}");
                 $this -> db_handle -> exec("SET CHARACTER SET {$db_settings -> charset}");
                 $this -> db_handle -> exec("SET collation_connection = {$db_settings -> collation}");
-
-                // debug logging
-                Logger::debug("Database Character Encoding Set", [
-                    'charset' => $db_settings -> charset,
-                    'collation' => $db_settings -> collation
-                ]);
 
                 // set pdo attributes
                 $this -> db_handle -> setAttribute(\PDO::ATTR_EMULATE_PREPARES, false);
@@ -92,6 +90,71 @@ if (! class_exists('Database')) {
                 ]);
 
                 throw $e;
+            }
+        }
+
+        /**
+         * configure
+         *
+         * Static method to create a configured Database instance
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param array|object $config Database configuration (array or object)
+         * @return self Returns configured Database instance
+         * @throws \InvalidArgumentException When configuration is invalid
+         */
+        public static function configure(array|object $config): self
+        {
+            // if array is passed, convert to object
+            if (is_array($config)) {
+                $config = (object) $config;
+            }
+            
+            // validate settings before attempting to create instance
+            self::validateSettings($config);
+            
+            // debug logging
+            Logger::debug("Database Configure Settings Validated Successfully");
+            
+            // create and return new instance (validation already done)
+            return new self($config);
+        }
+
+        /**
+         * validateSettings
+         *
+         * Validate database configuration settings
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param object $db_settings Database configuration settings to validate
+         * @return void
+         * @throws \InvalidArgumentException When settings are invalid
+         */
+        private static function validateSettings(object $db_settings): void
+        {
+            // validate that db_settings is provided
+            if ($db_settings === null) {
+                Logger::error("Database Validation Failed - No database settings provided");
+                throw new \InvalidArgumentException('Database settings are required.');
+            }
+
+            // validate required properties exist
+            $required_properties = ['server', 'schema', 'username', 'password', 'charset', 'collation'];
+            foreach ($required_properties as $property) {
+                if (!property_exists($db_settings, $property)) {
+                    Logger::error("Database Validation Failed - Missing required property", [
+                        'missing_property' => $property,
+                        'provided_properties' => array_keys(get_object_vars($db_settings))
+                    ]);
+                    
+                    throw new \InvalidArgumentException("Database settings missing required property: {$property}");
+                }
             }
         }
 
