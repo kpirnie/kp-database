@@ -11,9 +11,6 @@
 // throw it under my namespace
 namespace KPT;
 
-// no direct access
-defined( 'KPT_PATH' ) || die( 'Direct Access is not allowed!' );
-
 // if the class is not already in userspace
 if( ! class_exists( 'Database' ) ) {
 
@@ -55,13 +52,13 @@ if( ! class_exists( 'Database' ) ) {
          * 
          * @return void
          */
-        public function __construct( ) {
+        public function __construct( ?object $db_settings = null ) {
 
             // try to establish database connection
             try {
        
                 // get our database settings
-                $db_settings = KPT::get_setting( 'database' );
+                $db_settings = $db_settings ?? KPT::get_setting( 'database' );
 
                 // build the dsn string
                 $dsn = "mysql:host={$db_settings -> server};dbname={$db_settings -> schema}";
