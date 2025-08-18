@@ -27,7 +27,7 @@ class DatabaseTest extends TestCase
         
         try {
             $db = new Database();
-            $db->query("SELECT 1")->single()->as_array();
+            $db->query("SELECT 1")->single()->asArray();
         } catch (\Exception $e) {
             // Expected if no database connection
             $this->assertStringContainsString('database', strtolower($e->getMessage()));

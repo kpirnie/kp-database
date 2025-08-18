@@ -5,6 +5,7 @@ A modern, fluent PHP database wrapper built on top of PDO, providing an elegant 
 ## Features
 
 - **Fluent Interface**: Chain methods for readable and intuitive database operations
+- **PSR-12 Compliant**: Follows PHP coding standards with camelCase method names
 - **Prepared Statements**: Built-in protection against SQL injection
 - **Flexible Fetching**: Return results as objects or arrays, single records or collections
 - **Transaction Support**: Full transaction management with commit/rollback
@@ -24,29 +25,12 @@ A modern, fluent PHP database wrapper built on top of PDO, providing an elegant 
 Install via Composer:
 
 ```bash
-composer require kevinpirnie/kp-database
+composer require kpt/database
 ```
 
 ## Configuration
 
-The database class can be configured in two ways:
-
-### Option 1: Using KPT Settings (Original Method)
-The database class will automatically use `KPT::get_setting('database')` which should return an object with:
-
-```php
-$db_settings = (object) [
-    'server' => 'localhost',
-    'schema' => 'your_database',
-    'username' => 'your_username', 
-    'password' => 'your_password',
-    'charset' => 'utf8mb4',
-    'collation' => 'utf8mb4_unicode_ci'
-];
-```
-
-### Option 2: Direct Settings Object (New Method)
-Pass settings directly to the constructor:
+The database class requires a settings object to be passed to the constructor and expects a `Logger` class to be available in the `KPT` namespace:
 
 ```php
 $db_settings = (object) [
@@ -61,6 +45,8 @@ $db_settings = (object) [
 $db = new Database($db_settings);
 ```
 
+**Note**: You'll need to have a `KPT\Logger` class available with static `debug()` and `error()` methods for logging functionality.
+
 ## Basic Usage
 
 ### Initialization
@@ -68,10 +54,6 @@ $db = new Database($db_settings);
 ```php
 use KPT\Database;
 
-// Using KPT::get_setting('database') (original method)
-$db = new Database();
-
-// Or providing settings directly (new method)
 $db_settings = (object) [
     'server' => 'localhost',
     'schema' => 'my_database',
@@ -80,6 +62,7 @@ $db_settings = (object) [
     'charset' => 'utf8mb4',
     'collation' => 'utf8mb4_unicode_ci'
 ];
+
 $db = new Database($db_settings);
 ```
 
@@ -97,7 +80,7 @@ $user = $db->query("SELECT * FROM users WHERE id = ?")
 
 // Fetch as arrays instead of objects
 $users = $db->query("SELECT * FROM users")
-            ->as_array()
+            ->asArray()
             ->fetch();
 
 // Fetch with limit
@@ -210,8 +193,8 @@ $insert_id = $db->raw("
 - `bind(mixed $params)` - Bind parameters (single value or array)
 - `single()` - Set mode to fetch single record
 - `many()` - Set mode to fetch multiple records (default)
-- `as_array()` - Return results as associative arrays
-- `as_object()` - Return results as objects (default)
+- `asArray()` - Return results as associative arrays
+- `asObject()` - Return results as objects (default)
 
 ### Execution
 
@@ -227,7 +210,7 @@ $insert_id = $db->raw("
 
 ### Utilities
 
-- `get_last_id()` - Get the last inserted ID
+- `getLastId()` - Get the last inserted ID
 - `reset()` - Reset the query builder state
 
 ## Method Chaining
@@ -238,7 +221,7 @@ All query building methods return `$this`, allowing for fluent chaining:
 $user = $db->query("SELECT * FROM users WHERE email = ?")
            ->bind('john@example.com')
            ->single()
-           ->as_array()
+           ->asArray()
            ->fetch();
 ```
 
@@ -285,12 +268,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Author
 
 **Kevin Pirnie** - [me@kpirnie.com](mailto:me@kpirnie.com)
-
-## Changelog
-
-### Version 8.4
-- Initial release
-- Fluent interface implementation
-- Transaction support
-- Comprehensive parameter binding
-- Raw query support
