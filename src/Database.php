@@ -72,7 +72,7 @@ if( ! class_exists( 'Database' ) ) {
                 $this -> db_handle -> exec( "SET collation_connection = {$db_settings -> collation}" );
 
                 // debug logging
-                LOG::debug( "Database Character Encoding Set", [
+                Logger::debug( "Database Character Encoding Set", [
                     'charset' => $db_settings -> charset,
                     'collation' => $db_settings -> collation
                 ] );
@@ -84,13 +84,13 @@ if( ! class_exists( 'Database' ) ) {
                 $this -> db_handle -> setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION );
 
                 // debug logging
-                LOG::debug( "Database Constructor Completed Successfully" );
+                Logger::debug( "Database Constructor Completed Successfully" );
 
             // whoopsie...
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Constructor Failed", [
+                Logger::error( "Database Constructor Failed", [
                     'message' => $e -> getMessage( ),
                 ] );
 
@@ -124,13 +124,13 @@ if( ! class_exists( 'Database' ) ) {
                 unset( $this -> db_handle );
 
                 // debug logging
-                LOG::debug( "Database Destructor Completed Successfully" );
+                Logger::debug( "Database Destructor Completed Successfully" );
 
             // whoopsie...
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Destructor Error", [
+                Logger::error( "Database Destructor Error", [
                     'message' => $e -> getMessage( ),
                 ] );
             }
@@ -157,7 +157,7 @@ if( ! class_exists( 'Database' ) ) {
             $this -> current_query = $query;
 
             // debug logging
-            LOG::debug( "Database Query Stored Successfully", [] );
+            Logger::debug( "Database Query Stored Successfully", [] );
             
             // return self for chaining
             return $this;
@@ -186,7 +186,7 @@ if( ! class_exists( 'Database' ) ) {
             $this -> query_params = $params;
 
             // debug logging
-            LOG::debug( "Database Parameters Bound Successfully", [
+            Logger::debug( "Database Parameters Bound Successfully", [
                 'param_count' => count( $this -> query_params ),
                 'param_types' => array_map( 'gettype', $this -> query_params )
             ] );
@@ -293,7 +293,7 @@ if( ! class_exists( 'Database' ) ) {
             if ( empty( $this -> current_query ) ) {
 
                 // error logging
-                LOG::error( "Database Fetch Failed - No Query Set" );
+                Logger::error( "Database Fetch Failed - No Query Set" );
 
                 throw new \RuntimeException( 'No query has been set. Call query() first.' );
             }
@@ -305,7 +305,7 @@ if( ! class_exists( 'Database' ) ) {
                 $this -> fetch_single = true;
 
                 // debug logging
-                LOG::debug( "Database Fetch Mode Auto-Set to Single (limit=1)" );
+                Logger::debug( "Database Fetch Mode Auto-Set to Single (limit=1)" );
             
             // otherwise
             } elseif ( $limit > 1 ) {
@@ -314,7 +314,7 @@ if( ! class_exists( 'Database' ) ) {
                 $this -> fetch_single = false;
 
                 // debug logging
-                LOG::debug( "Database Fetch Mode Auto-Set to Many", [
+                Logger::debug( "Database Fetch Mode Auto-Set to Many", [
                     'limit' => $limit
                 ] );
             }
@@ -332,7 +332,7 @@ if( ! class_exists( 'Database' ) ) {
                 if ( ! $stmt -> execute( ) ) {
 
                     // error logging
-                    LOG::error( "Database Query Execution Failed" );
+                    Logger::error( "Database Query Execution Failed" );
 
                     return false;
                 }
@@ -347,7 +347,7 @@ if( ! class_exists( 'Database' ) ) {
                     $stmt -> closeCursor( );
 
                     // debug logging
-                    LOG::debug( "Database Single Record Fetched", [
+                    Logger::debug( "Database Single Record Fetched", [
                         'has_result' => ! empty( $result ),
                         'result_type' => gettype( $result )
                     ] );
@@ -364,7 +364,7 @@ if( ! class_exists( 'Database' ) ) {
                     $stmt -> closeCursor( );
 
                     // debug logging
-                    LOG::debug( "Database Multiple Records Fetched", [
+                    Logger::debug( "Database Multiple Records Fetched", [
                         'has_results' => ! empty( $results ),
                         'result_count' => is_array( $results ) ? count( $results ) : 0
                     ] );
@@ -377,7 +377,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Fetch Error", [
+                Logger::error( "Database Fetch Error", [
                     'message' => $e -> getMessage( ),
                 ] );
 
@@ -402,7 +402,7 @@ if( ! class_exists( 'Database' ) ) {
             if ( empty( $this -> current_query ) ) {
 
                 // error logging
-                LOG::error( "Database Execute Failed - No Query Set" );
+                Logger::error( "Database Execute Failed - No Query Set" );
 
                 // throw an exception
                 throw new \RuntimeException( 'No query has been set. Call query() first.' );
@@ -415,7 +415,7 @@ if( ! class_exists( 'Database' ) ) {
                 $stmt = $this -> db_handle -> prepare( $this -> current_query );
 
                 // debug logging
-                LOG::debug( "Database Statement Prepared for Execute" );
+                Logger::debug( "Database Statement Prepared for Execute" );
                 
                 // bind parameters if we have any
                 $this -> bind_params( $stmt, $this -> query_params );
@@ -427,12 +427,12 @@ if( ! class_exists( 'Database' ) ) {
                 if ( ! $success ) {
 
                     // error logging
-                    LOG::error( "Database Execute Failed", [] );
+                    Logger::error( "Database Execute Failed", [] );
                     return false;
                 }
 
                 // debug logging
-                LOG::debug( "Database Query Executed Successfully" );
+                Logger::debug( "Database Query Executed Successfully" );
                 
                 // determine return value based on query type
                 $query_type = strtoupper( substr( trim( $this -> current_query ), 0, 6 ) );
@@ -446,7 +446,7 @@ if( ! class_exists( 'Database' ) ) {
                         $result = $id ?: true;
 
                         // debug logging
-                        LOG::debug( "Database INSERT Executed", [] );
+                        Logger::debug( "Database INSERT Executed", [] );
 
                         return $result;
                         
@@ -457,14 +457,14 @@ if( ! class_exists( 'Database' ) ) {
                         $affected_rows = $stmt -> rowCount( );
 
                         // debug logging
-                        LOG::debug( "Database {$query_type} Executed", [] );
+                        Logger::debug( "Database {$query_type} Executed", [] );
 
                         return $affected_rows;
                         
                     default:
 
                         // debug logging
-                        LOG::debug( "Database {$query_type} Executed", [] );
+                        Logger::debug( "Database {$query_type} Executed", [] );
 
                         // return success for other queries
                         return $success;
@@ -474,7 +474,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Execute Error", [
+                Logger::error( "Database Execute Error", [
                     'message' => $e -> getMessage( ),
                 ] );
 
@@ -505,7 +505,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Get Last ID Error", [
+                Logger::error( "Database Get Last ID Error", [
                     'message' => $e -> getMessage( )
                 ] );
 
@@ -536,7 +536,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Transaction Start Error", [
+                Logger::error( "Database Transaction Start Error", [
                     'message' => $e -> getMessage( )
                 ] );
 
@@ -567,7 +567,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Transaction Commit Error", [
+                Logger::error( "Database Transaction Commit Error", [
                     'message' => $e -> getMessage( )
                 ] );
 
@@ -598,7 +598,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Transaction Rollback Error", [
+                Logger::error( "Database Transaction Rollback Error", [
                     'message' => $e -> getMessage( )
                 ] );
 
@@ -626,7 +626,7 @@ if( ! class_exists( 'Database' ) ) {
             $this -> fetch_single = false;
 
             // debug logging
-            LOG::debug( "Database Reset Completed" );
+            Logger::debug( "Database Reset Completed" );
             
             // return self for chaining
             return $this;
@@ -649,7 +649,7 @@ if( ! class_exists( 'Database' ) ) {
 
             // if we don't have any parameters just return
             if ( empty( $params ) ) {
-                LOG::debug( "Database Bind Params - No Parameters to Bind" );
+                Logger::debug( "Database Bind Params - No Parameters to Bind" );
                 return;
             }
 
@@ -664,7 +664,7 @@ if( ! class_exists( 'Database' ) ) {
                         $stmt -> bindValue( $i + 1, $param, \PDO::PARAM_STR );
 
                         // debug logging
-                        LOG::debug( "Database Parameter Bound (Regex String)", [
+                        Logger::debug( "Database Parameter Bound (Regex String)", [
                             'index' => $i + 1,
                             'pdo_type' => 'PDO::PARAM_STR',
                         ] );
@@ -684,7 +684,7 @@ if( ! class_exists( 'Database' ) ) {
                     $stmt -> bindValue( $i + 1, $param, $paramType );
 
                     // debug logging
-                    LOG::debug( "Database Parameter Bound", [
+                    Logger::debug( "Database Parameter Bound", [
                         'index' => $i + 1,
                         'param_type' => gettype( $param ),
                         'pdo_type' => $paramType,
@@ -692,7 +692,7 @@ if( ! class_exists( 'Database' ) ) {
                 }
 
                 // debug logging
-                LOG::debug( "Database Bind Params Completed Successfully", [
+                Logger::debug( "Database Bind Params Completed Successfully", [
                     'total_bound' => count( $params )
                 ] );
 
@@ -700,7 +700,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Bind Params Error", [
+                Logger::error( "Database Bind Params Error", [
                     'message' => $e -> getMessage( ),
                 ] );
 
@@ -736,7 +736,7 @@ if( ! class_exists( 'Database' ) ) {
                 if ( ! $stmt -> execute( ) ) {
 
                     // error logging
-                    LOG::error( "Database Raw Query Execution Failed", [] );
+                    Logger::error( "Database Raw Query Execution Failed", [] );
                     return false;
                 }
                 
@@ -749,7 +749,7 @@ if( ! class_exists( 'Database' ) ) {
                     $stmt -> closeCursor( );
 
                     // debug logging
-                    LOG::debug( "Database Raw SELECT Results", [
+                    Logger::debug( "Database Raw SELECT Results", [
                         'has_results' => ! empty( $results ),
                         'result_count' => is_array( $results ) ? count( $results ) : 0
                     ] );
@@ -764,7 +764,7 @@ if( ! class_exists( 'Database' ) ) {
                     $result = $id ?: true;
 
                     // debug logging
-                    LOG::debug( "Database Raw INSERT Results", [] );
+                    Logger::debug( "Database Raw INSERT Results", [] );
 
                     // return the result
                     return $result;
@@ -775,7 +775,7 @@ if( ! class_exists( 'Database' ) ) {
                     $affected_rows = $stmt -> rowCount( );
 
                     // debug logging
-                    LOG::debug( "Database Raw {$query_type} Results", [] );
+                    Logger::debug( "Database Raw {$query_type} Results", [] );
 
                     // return the result
                     return $affected_rows;
@@ -788,7 +788,7 @@ if( ! class_exists( 'Database' ) ) {
             } catch ( \Exception $e ) {
 
                 // error logging
-                LOG::error( "Database Raw Query Error", [
+                Logger::error( "Database Raw Query Error", [
                     'message' => $e -> getMessage( ),
                 ] );
 
