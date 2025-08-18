@@ -56,9 +56,6 @@ if( ! class_exists( 'Database' ) ) {
 
             // try to establish database connection
             try {
-       
-                // get our database settings
-                $db_settings = $db_settings ?? KPT::get_setting( 'database' );
 
                 // build the dsn string
                 $dsn = "mysql:host={$db_settings -> server};dbname={$db_settings -> schema}";
