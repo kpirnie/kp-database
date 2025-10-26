@@ -112,13 +112,13 @@ if (! class_exists('Database')) {
             if (is_array($config)) {
                 $config = (object) $config;
             }
-            
+
             // validate settings before attempting to create instance
             self::validateSettings($config);
-            
+
             // debug logging
             Logger::debug("Database Configure Settings Validated Successfully");
-            
+
             // create and return new instance (validation already done)
             return new self($config);
         }
@@ -152,7 +152,7 @@ if (! class_exists('Database')) {
                         'missing_property' => $property,
                         'provided_properties' => array_keys(get_object_vars($db_settings))
                     ]);
-                    
+
                     throw new \InvalidArgumentException("Database settings missing required property: {$property}");
                 }
             }
@@ -654,6 +654,23 @@ if (! class_exists('Database')) {
         }
 
         /**
+         * Check if currently in a transaction
+         *
+         * @return bool
+         */
+        public function inTransaction(): bool
+        {
+            try {
+                return $this->db_handle->inTransaction();
+            } catch (\Exception $e) {
+                Logger::error("Database inTransaction Check Error", [
+                    'message' => $e->getMessage()
+                ]);
+                return false;
+            }
+        }
+
+        /**
          * reset
          *
          * Reset the query builder state
@@ -695,7 +712,6 @@ if (! class_exists('Database')) {
          */
         private function bindParams(\PDOStatement $stmt, array $params = []): void
         {
-
             // if we don't have any parameters just return
             if (empty($params)) {
                 Logger::debug("Database Bind Params - No Parameters to Bind");
@@ -706,29 +722,23 @@ if (! class_exists('Database')) {
             try {
                 // loop over the parameters
                 foreach ($params as $i => $param) {
-                    // Always bind as string for regex fields
-                    if (is_string($param) && preg_match('/[\[\]{}()*+?.,\\^$|#\s-]/', $param)) {
-                        $stmt -> bindValue($i + 1, $param, \PDO::PARAM_STR);
-
-                        // debug logging
-                        Logger::debug("Database Parameter Bound (Regex String)", [
-                            'index' => $i + 1,
-                            'pdo_type' => 'PDO::PARAM_STR',
-                        ]);
-
-                        continue;
+                    // Handle arrays/objects by serializing them
+                    if (is_array($param) || is_object($param)) {
+                        $param = serialize($param);
+                        $paramType = \PDO::PARAM_STR;
+                    } elseif (is_string($param) && preg_match('/[\[\]{}()*+?.,\\^$|#\s-]/', $param)) {
+                        $paramType = \PDO::PARAM_STR;
+                    } else {
+                        $paramType = match (strtolower(gettype($param))) {
+                            'boolean' => \PDO::PARAM_BOOL,
+                            'integer' => \PDO::PARAM_INT,
+                            'null' => \PDO::PARAM_NULL,
+                            default => \PDO::PARAM_STR
+                        };
                     }
 
-                    // match the parameter types
-                    $paramType = match (strtolower(gettype($param))) {
-                        'boolean' => \PDO::PARAM_BOOL,
-                        'integer' => \PDO::PARAM_INT,
-                        'null' => \PDO::PARAM_NULL,
-                        default => \PDO::PARAM_STR
-                    };
-
                     // bind the parameter and value
-                    $stmt -> bindValue($i + 1, $param, $paramType);
+                    $stmt->bindValue($i + 1, $param, $paramType);
 
                     // debug logging
                     Logger::debug("Database Parameter Bound", [
@@ -747,7 +757,7 @@ if (! class_exists('Database')) {
             } catch (\Exception $e) {
                 // error logging
                 Logger::error("Database Bind Params Error", [
-                    'message' => $e -> getMessage(),
+                    'message' => $e->getMessage(),
                 ]);
 
                 throw $e;
