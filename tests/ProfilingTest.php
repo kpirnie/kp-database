@@ -46,9 +46,9 @@ class ProfilingTest extends DatabaseTestCase
 
     public function testQueryLogCapturesSelectQueries(): void
     {
-        $this->db->enableProfiling();
         $this->seedUsers(1);
 
+        $this->db->enableProfiling();
         $this->db->query("SELECT * FROM users")->fetch();
 
         $log = $this->db->getQueryLog();

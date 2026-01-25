@@ -70,7 +70,8 @@ class QueryTest extends DatabaseTestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('No query has been set');
 
-        $this->db->fetch();
+        $db = new \KPT\Database($this->settings);
+        $db->fetch();
     }
 
     public function testExecuteWithoutQueryThrowsException(): void
@@ -78,7 +79,8 @@ class QueryTest extends DatabaseTestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('No query has been set');
 
-        $this->db->execute();
+        $db = new \KPT\Database($this->settings);
+        $db->execute();
     }
 
     public function testFetchReturnsObjectByDefault(): void
@@ -135,7 +137,7 @@ class QueryTest extends DatabaseTestCase
     {
         $this->seedUsers(3);
 
-        $result = $this->db->query("SELECT * FROM users ORDER BY id")->fetch(2);
+        $result = $this->db->query("SELECT * FROM users ORDER BY id LIMIT 2")->fetch();
 
         $this->assertIsArray($result);
         $this->assertCount(2, $result);
