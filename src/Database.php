@@ -934,9 +934,10 @@ if (! class_exists('Database')) {
 
                 // build driver-specific query
                 $query = match ($this->driver) {
-                    'mysql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON DUPLICATE KEY UPDATE {$update_clause}",
-                    'sqlite' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON CONFLICT DO UPDATE SET {$update_clause}",
-                    'pgsql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON CONFLICT DO UPDATE SET {$update_clause}",
+                    'mysql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) " .
+                        "ON DUPLICATE KEY UPDATE {$update_clause}",
+                    'sqlite', 'pgsql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) " .
+                        "ON CONFLICT DO UPDATE SET {$update_clause}",
                     default => throw new \RuntimeException("Upsert not supported for driver: {$this->driver}")
                 };
 
