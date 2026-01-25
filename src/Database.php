@@ -198,20 +198,22 @@ if (! class_exists('Database')) {
          */
         protected function getOptimizedAttributes(): array
         {
+            // Check if persistent connections are enabled (default: false for safety)
+            $persistent = $this->db_settings->persistent ?? false;
+
             $base = [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_OBJ,
                 \PDO::ATTR_EMULATE_PREPARES => false,
                 \PDO::ATTR_CASE => \PDO::CASE_NATURAL,
+                \PDO::ATTR_PERSISTENT => $persistent,
             ];
 
             $driver_attrs = match ($this->driver) {
                 'mysql' => [
-                    \PDO::ATTR_PERSISTENT => true,
                     \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
                     \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$this->db_settings->charset}",
                 ],
-                'pgsql' => [\PDO::ATTR_PERSISTENT => true],
                 'sqlsrv' => [\PDO::SQLSRV_ATTR_ENCODING => \PDO::SQLSRV_ENCODING_UTF8],
                 'sqlite' => [\PDO::ATTR_TIMEOUT => 5],
                 default => []
@@ -735,6 +737,310 @@ if (! class_exists('Database')) {
                 ]);
 
                 throw $e;
+            }
+        }
+
+        /**
+         * count
+         *
+         * Execute a COUNT query and return the result
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $table The table name
+         * @param string $column The column to count (default: *)
+         * @param string|null $where Optional WHERE clause (without 'WHERE' keyword)
+         * @param array $params Optional parameters for WHERE clause
+         * @return int|false Returns count or false on failure
+         */
+        public function count(string $table, string $column = '*', ?string $where = null, array $params = []): int|false
+        {
+            // build the query
+            $query = "SELECT COUNT({$column}) as cnt FROM {$table}";
+
+            // add where clause if provided
+            if ($where !== null) {
+                $query .= " WHERE {$where}";
+            }
+
+            // execute and get result
+            $result = $this->query($query)->bind($params)->single()->fetch();
+
+            // return the count
+            if ($result === false) {
+                return false;
+            }
+
+            return (int) ($this->fetch_mode === \PDO::FETCH_ASSOC ? $result['cnt'] : $result->cnt);
+        }
+
+        /**
+         * exists
+         *
+         * Check if records exist matching the criteria
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $table The table name
+         * @param string $where WHERE clause (without 'WHERE' keyword)
+         * @param array $params Parameters for WHERE clause
+         * @return bool Returns true if records exist, false otherwise
+         */
+        public function exists(string $table, string $where, array $params = []): bool
+        {
+            // build an efficient EXISTS query
+            $query = "SELECT EXISTS(SELECT 1 FROM {$table} WHERE {$where} LIMIT 1) as record_exists";
+
+            // execute and get result
+            $result = $this->query($query)->bind($params)->single()->fetch();
+
+            // return boolean
+            if ($result === false) {
+                return false;
+            }
+
+            return (bool) ($this->fetch_mode === \PDO::FETCH_ASSOC ? $result['record_exists'] : $result->record_exists);
+        }
+
+        /**
+         * first
+         *
+         * Fetch the first record from the query result
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @return mixed Returns single record or false if not found
+         */
+        public function first(): mixed
+        {
+            return $this->single()->fetch();
+        }
+
+        /**
+         * insertBatch
+         *
+         * Insert multiple rows efficiently in a single query
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $table The table name
+         * @param array $columns Array of column names
+         * @param array $rows Array of rows, each row is an array of values
+         * @return int|false Returns number of inserted rows or false on failure
+         */
+        public function insertBatch(string $table, array $columns, array $rows): int|false
+        {
+            // validate inputs
+            if (empty($columns) || empty($rows)) {
+                Logger::error("Database Insert Batch Failed - Empty columns or rows");
+                return false;
+            }
+
+            // Ensure connection
+            if (!$this->is_connected) {
+                $this->connect();
+            }
+
+            try {
+                // build column list
+                $column_list = implode(', ', $columns);
+                $column_count = count($columns);
+
+                // build placeholders for a single row
+                $row_placeholder = '(' . implode(', ', array_fill(0, $column_count, '?')) . ')';
+
+                // build all row placeholders
+                $placeholders = implode(', ', array_fill(0, count($rows), $row_placeholder));
+
+                // build the query
+                $query = "INSERT INTO {$table} ({$column_list}) VALUES {$placeholders}";
+
+                // flatten all row values into single params array
+                $params = [];
+                foreach ($rows as $row) {
+                    if (count($row) !== $column_count) {
+                        Logger::error("Database Insert Batch Failed - Row column count mismatch");
+                        return false;
+                    }
+                    foreach ($row as $value) {
+                        $params[] = $value;
+                    }
+                }
+
+                // execute the query
+                $result = $this->query($query)->bind($params)->execute();
+
+                Logger::debug("Database Insert Batch Completed", [
+                    'table' => $table,
+                    'rows_inserted' => count($rows)
+                ]);
+
+                return $result !== false ? count($rows) : false;
+            } catch (\Exception $e) {
+                Logger::error("Database Insert Batch Error", [
+                    'message' => $e->getMessage()
+                ]);
+                throw $e;
+            }
+        }
+
+        /**
+         * upsert
+         *
+         * Insert or update a record (MySQL ON DUPLICATE KEY UPDATE)
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $table The table name
+         * @param array $data Associative array of column => value pairs to insert
+         * @param array $update Associative array of column => value pairs to update on duplicate
+         * @return int|false Returns last insert ID, affected rows, or false on failure
+         */
+        public function upsert(string $table, array $data, array $update): int|false
+        {
+            // validate inputs
+            if (empty($data) || empty($update)) {
+                Logger::error("Database Upsert Failed - Empty data or update arrays");
+                return false;
+            }
+
+            // Ensure connection
+            if (!$this->is_connected) {
+                $this->connect();
+            }
+
+            try {
+                // build column and placeholder lists for INSERT
+                $columns = array_keys($data);
+                $column_list = implode(', ', $columns);
+                $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+
+                // build UPDATE clause
+                $update_parts = [];
+                foreach (array_keys($update) as $col) {
+                    $update_parts[] = "{$col} = ?";
+                }
+                $update_clause = implode(', ', $update_parts);
+
+                // build driver-specific query
+                $query = match ($this->driver) {
+                    'mysql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON DUPLICATE KEY UPDATE {$update_clause}",
+                    'sqlite' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON CONFLICT DO UPDATE SET {$update_clause}",
+                    'pgsql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) ON CONFLICT DO UPDATE SET {$update_clause}",
+                    default => throw new \RuntimeException("Upsert not supported for driver: {$this->driver}")
+                };
+
+                // combine params: insert values + update values
+                $params = array_merge(array_values($data), array_values($update));
+
+                // execute the query
+                $result = $this->query($query)->bind($params)->execute();
+
+                Logger::debug("Database Upsert Completed", [
+                    'table' => $table
+                ]);
+
+                return $result;
+            } catch (\Exception $e) {
+                Logger::error("Database Upsert Error", [
+                    'message' => $e->getMessage()
+                ]);
+                throw $e;
+            }
+        }
+
+        /**
+         * replace
+         *
+         * Replace a record (MySQL REPLACE INTO)
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $table The table name
+         * @param array $data Associative array of column => value pairs
+         * @return int|false Returns last insert ID or false on failure
+         */
+        public function replace(string $table, array $data): int|false
+        {
+            // validate inputs
+            if (empty($data)) {
+                Logger::error("Database Replace Failed - Empty data array");
+                return false;
+            }
+
+            // Ensure connection
+            if (!$this->is_connected) {
+                $this->connect();
+            }
+
+            try {
+                // build column and placeholder lists
+                $columns = array_keys($data);
+                $column_list = implode(', ', $columns);
+                $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+
+                // build driver-specific query
+                $query = match ($this->driver) {
+                    'mysql' => "REPLACE INTO {$table} ({$column_list}) VALUES ({$placeholders})",
+                    'sqlite' => "INSERT OR REPLACE INTO {$table} ({$column_list}) VALUES ({$placeholders})",
+                    default => throw new \RuntimeException("Replace not supported for driver: {$this->driver}")
+                };
+
+                // execute the query
+                $result = $this->query($query)->bind(array_values($data))->execute();
+
+                Logger::debug("Database Replace Completed", [
+                    'table' => $table
+                ]);
+
+                return $result;
+            } catch (\Exception $e) {
+                Logger::error("Database Replace Error", [
+                    'message' => $e->getMessage()
+                ]);
+                throw $e;
+            }
+        }
+
+        /**
+         * quote
+         *
+         * Quote a string for safe use in a query (for edge cases)
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $value The value to quote
+         * @param int $type PDO parameter type (default: PDO::PARAM_STR)
+         * @return string|false Returns quoted string or false on failure
+         */
+        public function quote(string $value, int $type = \PDO::PARAM_STR): string|false
+        {
+            // Ensure connection
+            if (!$this->is_connected) {
+                $this->connect();
+            }
+
+            try {
+                return $this->db_handle->quote($value, $type);
+            } catch (\Exception $e) {
+                Logger::error("Database Quote Error", [
+                    'message' => $e->getMessage()
+                ]);
+                return false;
             }
         }
 
