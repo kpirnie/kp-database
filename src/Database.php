@@ -201,25 +201,22 @@ if (! class_exists('Database')) {
             // Check if persistent connections are enabled (default: false for safety)
             $persistent = $this->db_settings->persistent ?? false;
 
-            $base = [
-                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_OBJ,
-                \PDO::ATTR_EMULATE_PREPARES => false,
-                \PDO::ATTR_CASE => \PDO::CASE_NATURAL,
-                \PDO::ATTR_PERSISTENT => $persistent,
-            ];
+            // php 8.4 added the driver-specific Pdo\Mysql constants; 8.5 deprecates the PDO::MYSQL_* aliases
+            $mysql = class_exists(\Pdo\Mysql::class);
 
             $driver_attrs = match ($this->driver) {
                 'mysql' => [
-                    \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-                    \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES {$this->db_settings->charset}",
+                    ($mysql ? \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY : \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY) => true,
+                    ($mysql ? \Pdo\Mysql::ATTR_INIT_COMMAND : \PDO::MYSQL_ATTR_INIT_COMMAND)
+                    => "SET NAMES {$this->db_settings->charset}",
                 ],
                 'sqlsrv' => [\PDO::SQLSRV_ATTR_ENCODING => \PDO::SQLSRV_ENCODING_UTF8],
                 'sqlite' => [\PDO::ATTR_TIMEOUT => 5],
                 default => []
             };
 
-            return array_merge($base, $driver_attrs);
+            // union, not array_merge: attribute keys are integers and array_merge would renumber them
+            return $base + $driver_attrs;
         }
 
         /**
