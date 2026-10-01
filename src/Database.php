@@ -514,11 +514,6 @@ if (! class_exists('\KPT\Database', false)) {
          */
         private static function validateSettings(object $db_settings): void
         {
-            // validate that db_settings is provided
-            if ($db_settings === null) {
-                Logger::error("Database Validation Failed - No database settings provided");
-                throw new \InvalidArgumentException('Database settings are required.');
-            }
 
             // Get driver
             $driver = $db_settings->driver ?? 'mysql';
