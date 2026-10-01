@@ -141,8 +141,19 @@ if (! class_exists('\KPT\Database', false)) {
 
             // validate charset and collation since they are interpolated into connection commands
             foreach (['charset', 'collation'] as $key) {
-                if (isset($this->db_settings->$key) && !preg_match('/^[A-Za-z0-9_-]+$/', (string) $this->db_settings->$key)) {
-                    throw new \InvalidArgumentException(sprintf('Invalid database %s: %s', $key, $this->db_settings->$key));
+                if (
+                    isset($this->db_settings->$key) && !preg_match(
+                        '/^[A-Za-z0-9_-]+$/',
+                        (string) $this->db_settings->$key
+                    )
+                ) {
+                    throw new \InvalidArgumentException(
+                        sprintf(
+                            'Invalid database %s: %s',
+                            $key,
+                            $this->db_settings->$key
+                        )
+                    );
                 }
             }
         }
@@ -278,9 +289,7 @@ if (! class_exists('\KPT\Database', false)) {
             if (!$this->db_handle) {
                 return;
             }
-
             switch ($this->driver) {
-
                 case 'pgsql':
                     $charset = $this->db_settings->charset ?? 'UTF8';
                     $this->db_handle->exec("SET NAMES '$charset'");
@@ -1028,7 +1037,13 @@ if (! class_exists('\KPT\Database', false)) {
                     if (empty($conflict)) {
                         throw new \InvalidArgumentException('Upsert requires conflict columns for sqlite/pgsql');
                     }
-                    $conflict_clause = implode(', ', array_map(fn($col) => $this->quoteIdentifier((string) $col), $conflict));
+                    $conflict_clause = implode(
+                        ', ',
+                        array_map(
+                            fn($col) => $this->quoteIdentifier((string) $col),
+                            $conflict
+                        )
+                    );
                 }
 
                 // build driver-specific query
@@ -1235,7 +1250,11 @@ if (! class_exists('\KPT\Database', false)) {
                 Logger::debug("Database Query Executed Successfully");
 
                 // determine return value based on query type, skipping leading whitespace and comments
-                $query_type = preg_match('/^(?:\s+|--[^\n]*(?:\n|$)|\/\*.*?\*\/)*(\w+)/s', $this->current_query, $matches)
+                $query_type = preg_match(
+                    '/^(?:\s+|--[^\n]*(?:\n|$)|\/\*.*?\*\/)*(\w+)/s',
+                    $this->current_query,
+                    $matches
+                )
                     ? strtoupper($matches[1])
                     : '';
 
