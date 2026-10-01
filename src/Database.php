@@ -13,7 +13,7 @@
 namespace KPT;
 
 // if the class is not already in userspace
-if (! class_exists('Database')) {
+if (! class_exists('\KPT\Database', false)) {
 
     /**
      * Class Database
