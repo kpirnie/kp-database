@@ -54,6 +54,7 @@ if (! class_exists('\KPT\Database', false)) {
         // Query profiling
         protected bool $profiling_enabled = false;
         protected array $query_log = [];
+        protected int $query_log_max = 1000;
 
         /**
          * __construct
@@ -371,11 +372,13 @@ if (! class_exists('\KPT\Database', false)) {
          *
          * Enable query profiling/logging
          *
+         * @param int $max_entries Maximum number of profiled queries to keep (oldest dropped first)
          * @return self
          */
-        public function enableProfiling(): self
+        public function enableProfiling(int $max_entries = 1000): self
         {
             $this->profiling_enabled = true;
+            $this->query_log_max = max(1, $max_entries);
             Logger::debug("Database Profiling Enabled");
             return $this;
         }
@@ -443,6 +446,11 @@ if (! class_exists('\KPT\Database', false)) {
                 'duration_ms' => round($duration * 1000, 2),
                 'timestamp' => date('Y-m-d H:i:s'),
             ];
+
+            // keep the log capped so long-running workers don't leak memory
+            if (count($this->query_log) > $this->query_log_max) {
+                $this->query_log = array_slice($this->query_log, -$this->query_log_max);
+            }
 
             Logger::debug("Database Query Profiled", [
                 'duration_ms' => round($duration * 1000, 2),
