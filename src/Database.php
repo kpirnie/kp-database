@@ -56,6 +56,10 @@ if (! class_exists('\KPT\Database', false)) {
         protected array $query_log = [];
         protected int $query_log_max = 1000;
 
+        // prepared statement cache (LRU, keyed by SQL)
+        protected array $stmt_cache = [];
+        protected int $stmt_cache_max = 64;
+
         /**
          * __construct
          *
@@ -458,6 +462,44 @@ if (! class_exists('\KPT\Database', false)) {
         }
 
         /**
+         * getStatement
+         *
+         * Get a prepared statement for the query, reusing a cached one when available
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $query The SQL query to prepare
+         * @return \PDOStatement Returns the prepared statement
+         */
+        protected function getStatement(string $query): \PDOStatement
+        {
+            // reuse a cached statement, moving it to the most recently used spot
+            if (isset($this->stmt_cache[$query])) {
+                $stmt = $this->stmt_cache[$query];
+                unset($this->stmt_cache[$query]);
+                $this->stmt_cache[$query] = $stmt;
+
+                // make sure any previous result set is released
+                $stmt->closeCursor();
+                return $stmt;
+            }
+
+            // prepare it fresh
+            $stmt = $this->db_handle->prepare($query);
+
+            // drop the least recently used statement when the cache is full
+            if (count($this->stmt_cache) >= $this->stmt_cache_max) {
+                unset($this->stmt_cache[array_key_first($this->stmt_cache)]);
+            }
+
+            // cache and return it
+            $this->stmt_cache[$query] = $stmt;
+            return $stmt;
+        }
+
+        /**
          * validateSettings
          *
          * Validate database configuration settings
@@ -519,7 +561,8 @@ if (! class_exists('\KPT\Database', false)) {
                 // reset
                 $this->reset();
 
-                // close the connection
+                // release cached statements and close the connection
+                $this->stmt_cache = [];
                 $this->db_handle = null;
 
                 // clear em our
@@ -735,7 +778,7 @@ if (! class_exists('\KPT\Database', false)) {
                 $start_time = microtime(true);
 
                 // prepare the statement
-                $stmt = $this->db_handle->prepare($this->current_query);
+                $stmt = $this->getStatement($this->current_query);
 
                 // bind parameters if we have any
                 $this->bindParams($stmt, $this->query_params);
@@ -1173,7 +1216,7 @@ if (! class_exists('\KPT\Database', false)) {
                 $start_time = microtime(true);
 
                 // prepare the statement
-                $stmt = $this->db_handle->prepare($this->current_query);
+                $stmt = $this->getStatement($this->current_query);
 
                 // debug logging
                 Logger::debug("Database Statement Prepared for Execute");
