@@ -631,11 +631,13 @@ if (! class_exists('\KPT\Database', false)) {
             // store the parameters
             $this->query_params = $params;
 
-            // debug logging
-            Logger::debug("Database Parameters Bound Successfully", [
-                'param_count' => count($this->query_params),
-                'param_types' => array_map('gettype', $this->query_params)
-            ]);
+            // debug logging, only build the context when logging is on
+            if (Logger::isEnabled()) {
+                Logger::debug("Database Parameters Bound Successfully", [
+                    'param_count' => count($this->query_params),
+                    'param_types' => array_map('gettype', $this->query_params)
+                ]);
+            }
 
             // return self for chaining
             return $this;
@@ -1511,7 +1513,7 @@ if (! class_exists('\KPT\Database', false)) {
             // try to bind parameters
             try {
                 // check if using named parameters (associative array) or positional (numeric array)
-                $is_named = array_keys($params) !== range(0, count($params) - 1);
+                $is_named = !array_is_list($params);
 
                 // loop over the parameters
                 foreach ($params as $key => $param) {
@@ -1534,13 +1536,6 @@ if (! class_exists('\KPT\Database', false)) {
 
                     // bind the parameter and value
                     $stmt->bindValue($bind_key, $param, $paramType);
-
-                    // debug logging
-                    Logger::debug("Database Parameter Bound", [
-                        'key' => $bind_key,
-                        'param_type' => gettype($param),
-                        'pdo_type' => $paramType,
-                    ]);
                 }
 
                 // debug logging
