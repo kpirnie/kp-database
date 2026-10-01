@@ -104,6 +104,13 @@ if (! class_exists('\KPT\Database', false)) {
                     $this->db_settings->$key = $value;
                 }
             }
+
+            // validate charset and collation since they are interpolated into connection commands
+            foreach (['charset', 'collation'] as $key) {
+                if (isset($this->db_settings->$key) && !preg_match('/^[A-Za-z0-9_-]+$/', (string) $this->db_settings->$key)) {
+                    throw new \InvalidArgumentException(sprintf('Invalid database %s: %s', $key, $this->db_settings->$key));
+                }
+            }
         }
 
         /**
@@ -209,14 +216,14 @@ if (! class_exists('\KPT\Database', false)) {
                 \PDO::ATTR_PERSISTENT => $persistent,
             ];
 
-            // php 8.4 added the driver-specific Pdo\Mysql constants; 8.5 deprecates the PDO::MYSQL_* aliases
-            $mysql = class_exists(\Pdo\Mysql::class);
-
             $driver_attrs = match ($this->driver) {
                 'mysql' => [
-                    ($mysql ? \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY : \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY) => true,
-                    ($mysql ? \Pdo\Mysql::ATTR_INIT_COMMAND : \PDO::MYSQL_ATTR_INIT_COMMAND)
-                    => "SET NAMES {$this->db_settings->charset}",
+                    \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY => true,
+                    \Pdo\Mysql::ATTR_INIT_COMMAND => sprintf(
+                        'SET NAMES %s COLLATE %s',
+                        $this->db_settings->charset,
+                        $this->db_settings->collation
+                    ),
                 ],
                 'sqlsrv' => [\PDO::SQLSRV_ATTR_ENCODING => \PDO::SQLSRV_ENCODING_UTF8],
                 'sqlite' => [\PDO::ATTR_TIMEOUT => 5],
@@ -239,15 +246,6 @@ if (! class_exists('\KPT\Database', false)) {
             }
 
             switch ($this->driver) {
-                case 'mysql':
-                    $charset = $this->db_settings->charset ?? 'utf8mb4';
-                    $collation = $this->db_settings->collation ?? 'utf8mb4_unicode_ci';
-                    $this->db_handle->exec(
-                        "SET NAMES $charset COLLATE $collation, 
-                        CHARACTER SET $charset, 
-                        collation_connection = $collation"
-                    );
-                    break;
 
                 case 'pgsql':
                     $charset = $this->db_settings->charset ?? 'UTF8';
