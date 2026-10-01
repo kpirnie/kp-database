@@ -139,7 +139,7 @@ class BatchOperationsTest extends DatabaseTestCase
             'name' => 'Updated User'
         ];
 
-        $result = $this->db->upsert('users', $data, $update);
+        $result = $this->db->upsert('users', $data, $update, ['email']);
 
         $this->assertNotFalse($result);
 

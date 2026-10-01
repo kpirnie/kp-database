@@ -269,11 +269,12 @@ echo "Inserted {$inserted} rows";
 ### Upsert and Replace
 
 ```php
-// Insert or update on duplicate key (MySQL)
+// Insert or update on duplicate key
 $db->upsert(
     'users',
     ['id' => 1, 'name' => 'John Doe', 'email' => 'john@example.com'], // insert data
-    ['name' => 'John Doe', 'email' => 'john@example.com'] // update data on duplicate
+    ['name' => 'John Doe', 'email' => 'john@example.com'], // update data on duplicate
+    ['id'] // conflict columns (required for SQLite/PostgreSQL, ignored for MySQL)
 );
 
 // Replace (delete + insert if exists)
@@ -343,7 +344,7 @@ $quoted = $db->quote("O'Brien");
 - `count(string $table, string $column = '*', ?string $where = null, array $params = [])` - Count records
 - `exists(string $table, string $where, array $params = [])` - Check if records exist
 - `insertBatch(string $table, array $columns, array $rows)` - Insert multiple rows
-- `upsert(string $table, array $data, array $update)` - Insert or update on duplicate
+- `upsert(string $table, array $data, array $update, array $conflict = [])` - Insert or update on duplicate (`$conflict` required for SQLite/PostgreSQL)
 - `replace(string $table, array $data)` - Replace record
 - `quote(string $value, int $type = PDO::PARAM_STR)` - Quote a string for safe use
 

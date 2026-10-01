@@ -848,7 +848,12 @@ if (! class_exists('\KPT\Database', false)) {
         {
             // validate the identifiers
             $table = $this->quoteIdentifier($table);
-            $column = $column === '*' ? '*' : $this->quoteIdentifier($column);
+            $distinct = '';
+            if (preg_match('/^DISTINCT\s+(.+)$/i', trim($column), $matches)) {
+                $distinct = 'DISTINCT ';
+                $column = $matches[1];
+            }
+            $column = $column === '*' ? '*' : $distinct . $this->quoteIdentifier($column);
 
             // build the query
             $query = "SELECT COUNT({$column}) as cnt FROM {$table}";
