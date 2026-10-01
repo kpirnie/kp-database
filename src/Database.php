@@ -1186,14 +1186,21 @@ if (! class_exists('\KPT\Database', false)) {
                 // debug logging
                 Logger::debug("Database Query Executed Successfully");
 
-                // determine return value based on query type
-                $query_type = strtoupper(substr(trim($this->current_query), 0, 6));
+                // determine return value based on query type, skipping leading whitespace and comments
+                $query_type = preg_match('/^(?:\s+|--[^\n]*(?:\n|$)|\/\*.*?\*\/)*(\w+)/s', $this->current_query, $matches)
+                    ? strtoupper($matches[1])
+                    : '';
 
                 // figure out what kind of query are we running for the return value
                 switch ($query_type) {
                     case 'INSERT':
-                        // return last insert ID for inserts
-                        $id = $this->db_handle->lastInsertId();
+                    case 'REPLACE':
+                        // return last insert ID for inserts, pgsql throws when there is no sequence
+                        try {
+                            $id = $this->db_handle->lastInsertId();
+                        } catch (\PDOException) {
+                            $id = false;
+                        }
                         $result = $id ?: true;
 
                         // debug logging
