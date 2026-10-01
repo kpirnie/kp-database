@@ -68,7 +68,7 @@ if (! class_exists('\KPT\Database', false)) {
          * @return void
          * @throws \InvalidArgumentException When $db_settings is null or invalid
          */
-        public function __construct(object $db_settings)
+        public function __construct(#[\SensitiveParameter] object $db_settings)
         {
             // validate settings first
             self::validateSettings($db_settings);
@@ -81,6 +81,35 @@ if (! class_exists('\KPT\Database', false)) {
 
             // Lazy connection - only connect when needed for performance
             Logger::debug("Database Constructor Completed Successfully");
+        }
+
+        /**
+         * __debugInfo
+         *
+         * Control what var_dump/print_r expose, redacting the password
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @return array Returns the debug-safe properties
+         */
+        public function __debugInfo(): array
+        {
+            // copy the settings and redact the password
+            $settings = clone $this->db_settings;
+            if (isset($settings->password)) {
+                $settings->password = '********';
+            }
+
+            return [
+                'driver' => $this->driver,
+                'connection_name' => $this->connection_name,
+                'is_connected' => $this->is_connected,
+                'db_settings' => $settings,
+                'current_query' => $this->current_query,
+                'profiling_enabled' => $this->profiling_enabled,
+            ];
         }
 
         /**
