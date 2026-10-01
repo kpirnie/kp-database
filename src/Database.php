@@ -762,6 +762,10 @@ if (! class_exists('Database')) {
          */
         public function count(string $table, string $column = '*', ?string $where = null, array $params = []): int|false
         {
+            // validate the identifiers
+            $table = $this->quoteIdentifier($table);
+            $column = $column === '*' ? '*' : $this->quoteIdentifier($column);
+
             // build the query
             $query = "SELECT COUNT({$column}) as cnt FROM {$table}";
 
@@ -797,6 +801,9 @@ if (! class_exists('Database')) {
          */
         public function exists(string $table, string $where, array $params = []): bool
         {
+            // validate the table identifier
+            $table = $this->quoteIdentifier($table);
+
             // build an efficient EXISTS query
             $query = "SELECT EXISTS(SELECT 1 FROM {$table} WHERE {$where} LIMIT 1) as record_exists";
 
@@ -855,8 +862,9 @@ if (! class_exists('Database')) {
             }
 
             try {
-                // build column list
-                $column_list = implode(', ', $columns);
+                // validate the identifiers and build the column list
+                $table = $this->quoteIdentifier($table);
+                $column_list = implode(', ', array_map(fn($col) => $this->quoteIdentifier((string) $col), $columns));
                 $column_count = count($columns);
 
                 // build placeholders for a single row
@@ -925,15 +933,16 @@ if (! class_exists('Database')) {
             }
 
             try {
-                // build column and placeholder lists for INSERT
+                // validate the identifiers and build column and placeholder lists for INSERT
+                $table = $this->quoteIdentifier($table);
                 $columns = array_keys($data);
-                $column_list = implode(', ', $columns);
+                $column_list = implode(', ', array_map(fn($col) => $this->quoteIdentifier((string) $col), $columns));
                 $placeholders = implode(', ', array_fill(0, count($columns), '?'));
 
                 // build UPDATE clause
                 $update_parts = [];
                 foreach (array_keys($update) as $col) {
-                    $update_parts[] = "{$col} = ?";
+                    $update_parts[] = sprintf('%s = ?', $this->quoteIdentifier((string) $col));
                 }
                 $update_clause = implode(', ', $update_parts);
 
@@ -992,9 +1001,10 @@ if (! class_exists('Database')) {
             }
 
             try {
-                // build column and placeholder lists
+                // validate the identifiers and build column and placeholder lists
+                $table = $this->quoteIdentifier($table);
                 $columns = array_keys($data);
-                $column_list = implode(', ', $columns);
+                $column_list = implode(', ', array_map(fn($col) => $this->quoteIdentifier((string) $col), $columns));
                 $placeholders = implode(', ', array_fill(0, count($columns), '?'));
 
                 // build driver-specific query
@@ -1048,6 +1058,40 @@ if (! class_exists('Database')) {
                 ]);
                 return false;
             }
+        }
+
+
+        /**
+         * quoteIdentifier
+         *
+         * Validate a table or column identifier and quote it for the current driver
+         * pgsql and oci are validated only, since quoting changes their case folding
+         *
+         * @since 8.4
+         * @author Kevin Pirnie <me@kpirnie.com>
+         * @package KP Library
+         *
+         * @param string $identifier The identifier, optionally dot-qualified (schema.table / table.column)
+         * @return string Returns the validated, driver-quoted identifier
+         * @throws \InvalidArgumentException When the identifier is invalid
+         */
+        public function quoteIdentifier(string $identifier): string
+        {
+            // validate the identifier
+            if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/', $identifier)) {
+                throw new \InvalidArgumentException(sprintf('Invalid SQL identifier: %s', $identifier));
+            }
+
+            // get the driver specific quote format
+            $format = match ($this->driver) {
+                'mysql' => '`%s`',
+                'sqlite' => '"%s"',
+                'sqlsrv' => '[%s]',
+                default => '%s',
+            };
+
+            // quote each part of the identifier
+            return implode('.', array_map(fn($part) => sprintf($format, $part), explode('.', $identifier)));
         }
 
         /**
