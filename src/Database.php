@@ -944,9 +944,10 @@ if (! class_exists('\KPT\Database', false)) {
          * @param string $table The table name
          * @param array $data Associative array of column => value pairs to insert
          * @param array $update Associative array of column => value pairs to update on duplicate
+         * @param array $conflict Conflict target column names (required for sqlite/pgsql, ignored for mysql)
          * @return int|false Returns last insert ID, affected rows, or false on failure
          */
-        public function upsert(string $table, array $data, array $update): int|false
+        public function upsert(string $table, array $data, array $update, array $conflict = []): int|false
         {
             // validate inputs
             if (empty($data) || empty($update)) {
@@ -973,12 +974,21 @@ if (! class_exists('\KPT\Database', false)) {
                 }
                 $update_clause = implode(', ', $update_parts);
 
+                // build the conflict target for sqlite/pgsql
+                $conflict_clause = '';
+                if (in_array($this->driver, ['sqlite', 'pgsql'], true)) {
+                    if (empty($conflict)) {
+                        throw new \InvalidArgumentException('Upsert requires conflict columns for sqlite/pgsql');
+                    }
+                    $conflict_clause = implode(', ', array_map(fn($col) => $this->quoteIdentifier((string) $col), $conflict));
+                }
+
                 // build driver-specific query
                 $query = match ($this->driver) {
                     'mysql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) " .
                         "ON DUPLICATE KEY UPDATE {$update_clause}",
                     'sqlite', 'pgsql' => "INSERT INTO {$table} ({$column_list}) VALUES ({$placeholders}) " .
-                        "ON CONFLICT DO UPDATE SET {$update_clause}",
+                        "ON CONFLICT ({$conflict_clause}) DO UPDATE SET {$update_clause}",
                     default => throw new \RuntimeException("Upsert not supported for driver: {$this->driver}")
                 };
 
