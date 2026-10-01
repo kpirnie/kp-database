@@ -1313,6 +1313,11 @@ if (! class_exists('\KPT\Database', false)) {
         public function commit(): bool
         {
 
+            // nothing to commit without a connection
+            if (!$this->is_connected || !$this->db_handle) {
+                return false;
+            }
+
             // try to commit transaction
             try {
                 // commit the transaction
@@ -1342,6 +1347,11 @@ if (! class_exists('\KPT\Database', false)) {
          */
         public function rollback(): bool
         {
+
+            // nothing to roll back without a connection
+            if (!$this->is_connected || !$this->db_handle) {
+                return false;
+            }
 
             // try to rollback transaction
             try {
