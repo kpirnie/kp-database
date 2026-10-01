@@ -885,7 +885,7 @@ if (! class_exists('\KPT\Database', false)) {
             $table = $this->quoteIdentifier($table);
 
             // build an efficient EXISTS query
-            $query = "SELECT EXISTS(SELECT 1 FROM {$table} WHERE {$where} LIMIT 1) as record_exists";
+            $query = "SELECT EXISTS(SELECT 1 FROM {$table} WHERE {$where}) as record_exists";
 
             // execute and get result
             $result = $this->query($query)->bind($params)->single()->fetch();
