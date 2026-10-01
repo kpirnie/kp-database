@@ -36,4 +36,9 @@ class Logger
     {
         self::$logs = [];
     }
+
+    public static function isEnabled(): bool
+    {
+        return true;
+    }
 }

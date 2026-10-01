@@ -1,5 +1,7 @@
 # KPT Database
 
+
+
 A modern, fluent PHP database wrapper built on top of PDO, providing an elegant and secure way to interact with databases.
 
 ## Features
@@ -20,7 +22,7 @@ A modern, fluent PHP database wrapper built on top of PDO, providing an elegant 
 
 ## Requirements
 
-- PHP 8.2 or higher
+- PHP 8.4 or higher
 - PDO extension
 - Supported databases: MySQL 5.7+, MariaDB 10.2+, PostgreSQL, SQLite, SQL Server, Oracle
 
