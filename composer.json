@@ -1,6 +1,6 @@
 {
     "name": "kevinpirnie/kpt-database",
-    "description": "A modern, fluent PHP database wrapper built on top of PDO, providing an elegant and secure way to interact with MySQL databases",
+    "description": "A modern, fluent PHP database wrapper built on top of PDO, providing an elegant and secure way to interact with databases",
     "type": "library",
     "keywords": [
         "database",
